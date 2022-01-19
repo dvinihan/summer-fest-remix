@@ -24,6 +24,8 @@ import {
 } from "remix";
 import connectToDatabase from "~/utils/db.server";
 import { useEffect } from "react";
+import { User } from "~/types/User";
+import { Camper } from "~/types/Camper";
 
 export const loader: LoaderFunction = async ({ params }) => {
   if (!params.groupId) {
@@ -40,10 +42,10 @@ export const loader: LoaderFunction = async ({ params }) => {
     db.collection("campers").find({ group_id: groupId }).toArray(),
     db.collection("users").find().toArray(),
   ]);
-  return { groupData: groups[0], campers, users };
+  return { group: groups[0], campers, users };
 };
 
-export const action: ActionFunction = async ({ request, params }) => {
+export const action: ActionFunction = async ({ request }) => {
   const body = await request.formData();
   const updatedGroup = new Group(Object.fromEntries(body));
 
@@ -52,30 +54,31 @@ export const action: ActionFunction = async ({ request, params }) => {
     await db
       .collection("groups")
       .updateOne({ id: updatedGroup.id }, { $set: updatedGroup });
+    return { data: updatedGroup };
   } catch (e) {
-    return json("Sorry, we couldn't create the group", {
-      status: 500,
-    });
+    return json(
+      { error: { message: "Sorry, we couldn't create the group" } },
+      { status: 500 }
+    );
   }
-
-  return {};
 };
 
 const GroupEdit = () => {
-  const { groupData, campers, users } = useLoaderData();
+  const { group, campers, users } =
+    useLoaderData<{ group: Group; campers: Camper[]; users: User[] }>();
   const navigate = useNavigate();
   const theme = useTheme();
   const { setToastMessage } = useAppContext();
-  const data = useActionData();
+  const { data, error } = useActionData<{ data: Group; error: Error }>() ?? {};
   const transition = useTransition();
 
   useEffect(() => {
     if (data) {
       setToastMessage("Group successfully saved.");
     }
-  }, [data]);
+  }, [data, transition.state]);
 
-  if (!groupData) {
+  if (!group) {
     return <PageError />;
   }
 
@@ -89,14 +92,13 @@ const GroupEdit = () => {
         spacing={1}
       >
         <Grid item marginBottom={theme.spacing(2)}>
-          <GroupForm initialGroup={groupData ?? transition.submission} />
+          <GroupForm initialGroup={group} />
         </Grid>
-        {/* 
-        {(editGroupMutation.isError || deleteGroupMutation.isError) && (
+        {error && (
           <Grid item>
             <FormError />
           </Grid>
-        )} */}
+        )}
 
         <Grid item>
           <Typography variant="h4" gutterBottom>
@@ -107,9 +109,7 @@ const GroupEdit = () => {
         <CamperTable campers={campers} />
 
         <Grid item>
-          <Button
-            onClick={() => navigate(`/camperAdd?groupId=${data?.groupId}`)}
-          >
+          <Button onClick={() => navigate(`/camperAdd?groupId=${group.id}`)}>
             <Paper sx={{ padding: theme.spacing(1) }}>
               <Container>Add a Camper</Container>
             </Paper>
@@ -118,7 +118,7 @@ const GroupEdit = () => {
 
         <Grid item>
           <Button
-            onClick={() => downloadCSV({ groups: groupData, campers, users })}
+            onClick={() => downloadCSV({ groups: [group], campers, users })}
           >
             <Paper sx={{ padding: theme.spacing(1) }}>
               <Container>

@@ -1,4 +1,5 @@
 import {
+  ErrorBoundaryComponent,
   Links,
   LinksFunction,
   LiveReload,
@@ -11,6 +12,7 @@ import type { MetaFunction } from "remix";
 import globalStylesUrl from "./styles/global.css";
 import { PageHeader } from "./components/PageHeader";
 import { AppContextProvider } from "./context/AppContext";
+import PageError from "./components/PageError";
 
 export const meta: MetaFunction = () => {
   return { title: "Summer Fest Registration" };
@@ -51,3 +53,20 @@ export default function App() {
     </html>
   );
 }
+
+export const ErrorBoundary: ErrorBoundaryComponent = ({ error }) => {
+  console.error(error);
+  return (
+    <html>
+      <head>
+        <title>Oh no!</title>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <PageError />
+        <Scripts />
+      </body>
+    </html>
+  );
+};
